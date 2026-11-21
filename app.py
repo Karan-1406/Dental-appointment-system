@@ -1,24 +1,29 @@
-
 import os
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Load API key from Streamlit Cloud Secrets or local .env
-# Load secrets safely
+# Load Streamlit Cloud secrets
 try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+    secrets = st.secrets
 
-    if "MODEL_NAME" in st.secrets:
-        os.environ["MODEL_NAME"] = st.secrets["MODEL_NAME"]
+    if secrets.get("GOOGLE_API_KEY"):
+        os.environ["GOOGLE_API_KEY"] = secrets["GOOGLE_API_KEY"]
 
-    if "TEMPERATURE" in st.secrets:
-        os.environ["TEMPERATURE"] = str(st.secrets["TEMPERATURE"])
+    if secrets.get("MODEL_NAME"):
+        os.environ["MODEL_NAME"] = secrets["MODEL_NAME"]
+
+    if secrets.get("TEMPERATURE") is not None:
+        os.environ["TEMPERATURE"] = str(secrets["TEMPERATURE"])
 
 except Exception:
     pass
+
+# Validate API key before importing the agent
+if not os.getenv("GOOGLE_API_KEY"):
+    st.error("Gemini API key is missing. Please configure GOOGLE_API_KEY in Streamlit Secrets.")
+    st.stop()
 
 from langchain_core.messages import HumanMessage, AIMessage
 from dental_agent.agent import dental_graph
