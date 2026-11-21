@@ -1,13 +1,21 @@
-from langchain_xai import ChatXAI
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import ToolNode
-from dental_agent.config.settings import XAI_API_KEY, MODEL_NAME, TEMPERATURE
+
+from dental_agent.config.settings import GOOGLE_API_KEY, MODEL_NAME, TEMPERATURE
 from dental_agent.models.state import AppointmentState
 from dental_agent.tools.csv_reader import get_available_slots, check_slot_availability
 from dental_agent.tools.csv_writer import book_appointment
 from dental_agent.utils import sanitize_messages
 
-BOOKING_TOOLS = [get_available_slots, check_slot_availability, book_appointment]
+
+BOOKING_TOOLS = [
+    get_available_slots,
+    check_slot_availability,
+    book_appointment
+]
+
 
 BOOKING_SYSTEM = """You are the Booking Agent for a dental appointment management system.
 
@@ -37,23 +45,30 @@ Your ONLY job is to book NEW appointments for patients.
 M/D/YYYY H:MM (e.g., 5/10/2026 9:00)
 """
 
+
 BOOKING_PROMPT = ChatPromptTemplate.from_messages([
     ("system", BOOKING_SYSTEM),
     ("placeholder", "{messages}"),
 ])
 
+
 booking_tool_node = ToolNode(tools=BOOKING_TOOLS)
 
 
 def booking_agent_node(state: AppointmentState) -> dict:
-    llm = ChatXAI(
-        api_key=XAI_API_KEY,
+
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=GOOGLE_API_KEY,
         model=MODEL_NAME,
         temperature=TEMPERATURE,
     ).bind_tools(BOOKING_TOOLS)
 
     chain = BOOKING_PROMPT | llm
-    response = chain.invoke({"messages": sanitize_messages(state["messages"])})
+
+    response = chain.invoke({
+        "messages": sanitize_messages(state["messages"])
+    })
+
     return {
         "messages": [response],
         "final_response": response.content if not response.tool_calls else None,

@@ -1,13 +1,21 @@
-from langchain_xai import ChatXAI
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import ToolNode
-from dental_agent.config.settings import XAI_API_KEY, MODEL_NAME, TEMPERATURE
+
+from dental_agent.config.settings import GOOGLE_API_KEY, MODEL_NAME, TEMPERATURE
 from dental_agent.models.state import AppointmentState
 from dental_agent.tools.csv_reader import get_patient_appointments, get_available_slots
 from dental_agent.tools.csv_writer import reschedule_appointment
 from dental_agent.utils import sanitize_messages
 
-RESCHEDULE_TOOLS = [get_patient_appointments, get_available_slots, reschedule_appointment]
+
+RESCHEDULE_TOOLS = [
+    get_patient_appointments,
+    get_available_slots,
+    reschedule_appointment
+]
+
 
 RESCHEDULE_SYSTEM = """You are the Rescheduling Agent for a dental appointment management system.
 
@@ -40,23 +48,30 @@ Your ONLY job is to move an existing appointment to a new time slot.
 M/D/YYYY H:MM (e.g., 5/10/2026 9:00)
 """
 
+
 RESCHEDULE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", RESCHEDULE_SYSTEM),
     ("placeholder", "{messages}"),
 ])
 
+
 rescheduling_tool_node = ToolNode(tools=RESCHEDULE_TOOLS)
 
 
 def rescheduling_agent_node(state: AppointmentState) -> dict:
-    llm = ChatXAI(
-        api_key=XAI_API_KEY,
+
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=GOOGLE_API_KEY,
         model=MODEL_NAME,
         temperature=TEMPERATURE,
     ).bind_tools(RESCHEDULE_TOOLS)
 
     chain = RESCHEDULE_PROMPT | llm
-    response = chain.invoke({"messages": sanitize_messages(state["messages"])})
+
+    response = chain.invoke({
+        "messages": sanitize_messages(state["messages"])
+    })
+
     return {
         "messages": [response],
         "final_response": response.content if not response.tool_calls else None,

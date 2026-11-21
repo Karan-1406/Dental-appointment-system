@@ -1,5 +1,6 @@
+
 """
-Dental Appointment System — powered by LangGraph + Grok-4 (xAI)
+Dental Appointment System — powered by LangGraph + Google Gemini
 """
 
 from dotenv import load_dotenv
@@ -8,11 +9,13 @@ load_dotenv()
 from langchain_core.messages import HumanMessage, AIMessageChunk
 from dental_agent.agent import dental_graph
 
+
 BANNER = """
 ╔══════════════════════════════════════════════════════════╗
 ║         Dental Appointment Management System             ║
-║         Powered by LangGraph + Grok-4 (xAI)              ║
+║         Powered by LangGraph + Google Gemini             ║
 ╚══════════════════════════════════════════════════════════╝
+
 Examples:
   • Show available slots for an orthodontist
   • Book patient 1000082 with Emily Johnson on 5/10/2026 9:00
@@ -31,12 +34,14 @@ def run():
     while True:
         try:
             user_input = input("\nYou: ").strip()
+
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye!")
             break
 
         if not user_input:
             continue
+
         if user_input.lower() in {"quit", "exit", "bye"}:
             print("Goodbye!")
             break
@@ -52,23 +57,44 @@ def run():
                 stream_mode=["messages", "values"],
                 config={"recursion_limit": 20},
             ):
+
                 if event_type == "messages":
                     chunk, meta = data
-                    # Stream tokens only from the agent (not tool results)
+
+                    # Print only AI response, not tool results
                     if (
                         isinstance(chunk, AIMessageChunk)
                         and chunk.content
                         and not getattr(chunk, "tool_calls", None)
                     ):
-                        print(chunk.content, end="", flush=True)
+
+                        content = chunk.content
+
+                        if isinstance(content, str):
+                            print(content, end="", flush=True)
+
+                        elif isinstance(content, list):
+                            for block in content:
+                                if (
+                                    isinstance(block, dict)
+                                    and block.get("type") == "text"
+                                ):
+                                    print(
+                                        block.get("text", ""),
+                                        end="",
+                                        flush=True
+                                    )
+
                 elif event_type == "values":
                     final_messages = data.get("messages", [])
+
         except Exception as exc:
             print(f"\nError: {exc}")
-            history.pop()  # Remove the HumanMessage to avoid consecutive user messages
+            history.pop()
             continue
 
         print()
+
         if final_messages:
             history = final_messages
 

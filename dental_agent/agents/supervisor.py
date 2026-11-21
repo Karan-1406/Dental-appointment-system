@@ -1,23 +1,30 @@
-from langchain_xai import ChatXAI
+
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
-from dental_agent.config.settings import XAI_API_KEY, MODEL_NAME, TEMPERATURE
+
+from dental_agent.config.settings import GOOGLE_API_KEY, MODEL_NAME, TEMPERATURE
 from dental_agent.models.state import AppointmentState, RouteTarget
 from dental_agent.utils import sanitize_messages
 
 
 class SupervisorDecision(BaseModel):
     """Routing decision produced by the supervisor."""
+
     intent: str = Field(
         description="Classified intent. One of: get_info, book, cancel, reschedule, unknown, end."
     )
+
     next_agent: RouteTarget = Field(
         description=(
             "The agent to route to. One of: info_agent, booking_agent, "
             "cancellation_agent, rescheduling_agent, end."
         )
     )
-    reasoning: str = Field(description="Brief explanation of the routing decision.")
+
+    reasoning: str = Field(
+        description="Brief explanation of the routing decision."
+    )
 
 
 SUPERVISOR_SYSTEM = """You are the supervisor and router for a dental appointment management system.
@@ -40,6 +47,7 @@ Your ONLY job is to analyze the user's latest message and classify their intent,
 Output ONLY valid JSON matching the SupervisorDecision schema.
 """
 
+
 SUPERVISOR_PROMPT = ChatPromptTemplate.from_messages([
     ("system", SUPERVISOR_SYSTEM),
     ("placeholder", "{messages}"),
@@ -47,14 +55,18 @@ SUPERVISOR_PROMPT = ChatPromptTemplate.from_messages([
 
 
 def supervisor_node(state: AppointmentState) -> dict:
-    llm = ChatXAI(
-        api_key=XAI_API_KEY,
+
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=GOOGLE_API_KEY,
         model=MODEL_NAME,
         temperature=TEMPERATURE,
     ).with_structured_output(SupervisorDecision)
 
     chain = SUPERVISOR_PROMPT | llm
-    decision: SupervisorDecision = chain.invoke({"messages": sanitize_messages(state["messages"])})
+
+    decision: SupervisorDecision = chain.invoke({
+        "messages": sanitize_messages(state["messages"])
+    })
 
     return {
         "intent": decision.intent,
